@@ -1,14 +1,14 @@
+from novel_scraper.native.cout_custom import COut
+from novel_scraper.native.novel_update_cycle import NovelUpdateCycle
 from django.core.management.base import BaseCommand, CommandError
-from novel_scraper.models import NovelUpdaterType, NovelUpdater
 
 class Command(BaseCommand):
-    help = "Closes the specified poll for voting"
-    """
+    help = "Starts the db update cycle"
+    
     def add_arguments(self, parser):
-        parser.add_argument("poll_ids", nargs="+", type=int)"""
+        parser.add_argument("max_cc_ops_per_site", nargs="+", type=int)
 
     def handle(self, *args, **options):
-            NovelUpdater(NovelUpdaterType.NOVEL_PROFILER)
-            self.stdout.write(
-                self.style.SUCCESS('testing')
-            )
+            COut.broadcast("Beginning update...", style="init", header="ADMIN")
+
+            NovelUpdateCycle(int(options["max_cc_ops_per_site"][0]))

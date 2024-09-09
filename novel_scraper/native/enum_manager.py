@@ -1,3 +1,5 @@
+import novel_scraper.native.ns_exceptions as nsexc
+import novel_scraper.native.cout_custom as cout
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 
 
@@ -13,4 +15,4 @@ class EnumManager:
             new_enum.save()
             return new_enum
         except MultipleObjectsReturned:
-            raise Exception(f" [~ENUM_MANAGER] > Multiple objects of type {enum_type} and str {enum_str} exists!")
+            raise nsexc.DuplicatedEnumException(enum_type, enum_str)
