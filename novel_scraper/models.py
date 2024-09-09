@@ -2,10 +2,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from django.db import models
 from django.core.exceptions import PermissionDenied
-from time import sleep
-from .native.webnovelpub import *
-from novel_scraper.native.novel_updater import NovelUpdater, NovelUpdaterType
-from novel_scraper.native.source_site import SourceSite
+from novel_scraper.native.novel_updater import NovelUpdaterType
 from novel_scraper.native.novel_ppool_cfg import PROCESS_CONTROL_THRESHOLD
 
 
@@ -116,8 +113,6 @@ class NovelProcess(models.Model):
         self.is_being_processed = False
         self.save()
     
-
-
 
 
 def spawn_novel_profiler():

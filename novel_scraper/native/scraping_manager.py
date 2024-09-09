@@ -8,7 +8,7 @@ class ScrapingManagerConfig:
                 "scrape_all_novel_links": webnovelpub__scrape_all_novel_links,
                 "scrape_novel_profile": webnovelpub__scrape_novel_profile,
                 "scrape_novel_chapter_profiles": webnovelpub__scrape_novel_chapter_profiles,
-                "scrape_novel_chapters": webnovelpub__scrape_novel_chapters
+                "scrape_novel_chapters": webnovelpub__scrape_novel_chapter
             }
 
 class ScrapingManager:
