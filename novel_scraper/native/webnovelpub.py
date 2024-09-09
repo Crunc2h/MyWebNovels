@@ -1,7 +1,8 @@
+import novel_scraper.native.cout_custom as cout
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
-from novel_scraper.native.cout_custom import COut
+
 
 BROWSE_BASE_URL = "https://www.webnovelworld.org/browse/genre-all-25060123/order-new/status-all"
 
@@ -26,16 +27,16 @@ def webnovelpub__scrape_all_novel_links(base_url=BROWSE_BASE_URL, default_implic
 
         driver.implicitly_wait(default_implicit_wait)
 
-        COut.broadcast(message=f"{pages_traversed} pages traversed", style="progress", header=header)
-        COut.broadcast(message=f"Found {novels_links_added} novels", style="progress", header=header)
+        cout.Cout.broadcast(message=f"{pages_traversed} pages traversed", style="progress", header=header)
+        cout.Cout.broadcast(message=f"Found {novels_links_added} novels", style="progress", header=header)
 
         try:
             next_page = driver.find_element(By.CSS_SELECTOR, ".PagedList-skipToNext").find_element(By.TAG_NAME, "a").get_attribute("href")
             pages_traversed += 1
             driver.get(next_page)
         except NoSuchElementException:
-            COut.broadcast(message=f"Scraping complete novel base links is complete.", style="success", header=header)
-            COut.broadcast(message=f"Found a total of {novel_links} novels from {pages_traversed} pages.", style="success", header=header)
+            cout.Cout.broadcast(message=f"Scraping complete novel base links is complete.", style="success", header=header)
+            cout.Cout.broadcast(message=f"Found a total of {novel_links} novels from {pages_traversed} pages.", style="success", header=header)
             return novel_links
 
 def webnovelpub__scrape_novel_profile(novel_base_link, default_implicit_wait=1): 
@@ -43,7 +44,7 @@ def webnovelpub__scrape_novel_profile(novel_base_link, default_implicit_wait=1):
     driver = webdriver.Chrome()
     driver.get(novel_base_link)
 
-    COut.broadcast(message=f"Beginning scraping novel profile from {novel_base_link}...", style="init", header=header)
+    cout.Cout.broadcast(message=f"Beginning scraping novel profile from {novel_base_link}...", style="init", header=header)
 
     name = driver.find_element(By.CSS_SELECTOR, ".novel-title").text
     author_name = driver.find_element(By.CSS_SELECTOR, ".author").text
@@ -60,7 +61,7 @@ def webnovelpub__scrape_novel_profile(novel_base_link, default_implicit_wait=1):
 
     driver.implicitly_wait(default_implicit_wait)
 
-    COut.broadcast(message=f"Scraping the profile for novel {name} is complete.", style="success", header=header)
+    cout.Cout.broadcast(message=f"Scraping the profile for novel {name} is complete.", style="success", header=header)
     
     return {
         "author_name": author_name,
@@ -77,7 +78,7 @@ def webnovelpub__scrape_novel_chapter_profiles(novel_base_link, default_implicit
     driver = webdriver.Chrome()
     driver.get(novel_base_link)
 
-    COut.broadcast(message=f"Beginning scraping chapter profiles from {novel_base_link}...", style="init", header=header)
+    cout.Cout.broadcast(message=f"Beginning scraping chapter profiles from {novel_base_link}...", style="init", header=header)
 
     novel_chapters_button = driver.find_element(By.CSS_SELECTOR, "a.grdbtn:nth-child(1)")
     novel_chapters_button.click()
@@ -110,8 +111,8 @@ def webnovelpub__scrape_novel_chapter_profiles(novel_base_link, default_implicit
 
         driver.implicitly_wait(default_implicit_wait)
 
-        COut.broadcast(message=f"{pages_traversed} pages traversed", style="progress", header=header)
-        COut.broadcast(message=f"Found {chapter_profiles_added} chapter profiles", style="progress", header=header)
+        cout.Cout.broadcast(message=f"{pages_traversed} pages traversed", style="progress", header=header)
+        cout.Cout.broadcast(message=f"Found {chapter_profiles_added} chapter profiles", style="progress", header=header)
 
 
         try:
@@ -119,8 +120,8 @@ def webnovelpub__scrape_novel_chapter_profiles(novel_base_link, default_implicit
             pages_traversed += 1
             driver.get(next_page)
         except NoSuchElementException:
-            COut.broadcast(message=f"Scraping chapter profiles from {novel_base_link} is complete.", style="success", header=header)
-            COut.broadcast(message=f"Found a total of {len(chapter_profiles)} chapter profiles from {pages_traversed} pages.", style="success", header=header)
+            cout.Cout.broadcast(message=f"Scraping chapter profiles from {novel_base_link} is complete.", style="success", header=header)
+            cout.Cout.broadcast(message=f"Found a total of {len(chapter_profiles)} chapter profiles from {pages_traversed} pages.", style="success", header=header)
             return chapter_profiles
 
 def webnovelpub__scrape_novel_chapter(chapter_profile, default_implicit_wait=1):
@@ -128,14 +129,14 @@ def webnovelpub__scrape_novel_chapter(chapter_profile, default_implicit_wait=1):
     driver = webdriver.Chrome()
     driver.get(chapter_profile.link)
 
-    COut.broadcast(message=f"Scraping chapter {chapter_profile.number}, {chapter_profile.name}...", style="init", header=header)
+    cout.Cout.broadcast(message=f"Scraping chapter {chapter_profile.number}, {chapter_profile.name}...", style="init", header=header)
 
     paragraph_elements = driver.find_element(By.ID, "chapter-container").find_elements(By.TAG_NAME, "p")
     driver.implicitly_wait(default_implicit_wait)
     
     chapter_text = "\n".join([element.text for element in paragraph_elements])
 
-    COut.broadcast(message=f"Scraping of chapter {chapter_profile.number}-{chapter_profile.name} complete, chapter char count -- {len(chapter_text)}", style="success", header=header)
+    cout.Cout.broadcast(message=f"Scraping of chapter {chapter_profile.number}-{chapter_profile.name} complete, chapter char count -- {len(chapter_text)}", style="success", header=header)
 
     return chapter_text
 

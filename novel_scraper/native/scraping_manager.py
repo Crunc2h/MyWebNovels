@@ -1,14 +1,14 @@
-from source_site import SourceSite
-from webnovelpub import *
+import novel_scraper.native.webnovelpub as webnovelpub
+from novel_scraper.native.source_site import SourceSite
 
 class ScrapingManagerConfig:
     def get_config(source_site):
         if source_site == SourceSite.WEBNOVELPUB:
             return {
-                "scrape_all_novel_links": webnovelpub__scrape_all_novel_links,
-                "scrape_novel_profile": webnovelpub__scrape_novel_profile,
-                "scrape_novel_chapter_profiles": webnovelpub__scrape_novel_chapter_profiles,
-                "scrape_novel_chapters": webnovelpub__scrape_novel_chapter
+                "scrape_all_novel_links": webnovelpub.webnovelpub__scrape_all_novel_links,
+                "scrape_novel_profile": webnovelpub.webnovelpub__scrape_novel_profile,
+                "scrape_novel_chapter_profiles": webnovelpub.webnovelpub__scrape_novel_chapter_profiles,
+                "scrape_novel_chapters": webnovelpub.webnovelpub__scrape_novel_chapter
             }
 
 class ScrapingManager:

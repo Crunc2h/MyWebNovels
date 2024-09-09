@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from novel_scraper.native.cout_exceptions import InvalidStyleException
+import novel_scraper.native.cout_exceptions as coutexc
 
 
 class COutColors:
@@ -23,7 +23,7 @@ class COutColors:
         elif style_str == "success": return COutColors.BOLD + COutColors.UNDERLINE + COutColors.GREEN 
         elif style_str == "warning": return COutColors.UNDERLINE + COutColors.YELLOW
         elif style_str == "fail": return COutColors.BOLD + COutColors.UNDERLINE + COutColors.RED
-        else : raise InvalidStyleException(style_str)
+        else : raise coutexc.InvalidStyleException(style_str)
 
 class COut:
     @staticmethod

@@ -1,6 +1,10 @@
 from novel_scraper.native.enum_manager import EnumManager
+from novel_scraper.native.scraping_manager import ScrapingManager
+from novel_scraper.native.cout_custom import COut
+from novel_scraper.native.ns_exceptions import NoProcessPoolExists, ProcessPoolLocked, InvalidUpdaterFunctionType
 from novel_scraper.native.novel_ppool_cfg import POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD
-from novel_scraper.models import *
+import novel_scraper.models as models
+from time import sleep
 
 
 class NovelUpdaterType:
@@ -21,42 +25,40 @@ class NovelUpdaterType:
 
 class NovelUpdater:
     def __init__(self, updater_func_type, source_site) -> None:
-        self.pool = NovelProcessPool.objects.first()
-        if not self.pool:
-            raise Exception(f" [~NOVEL_UPDATER] > No process pool exists!")
-
         self.source_site = source_site
         self.updater_func_type = updater_func_type
-        print(
-            f" [~NOVEL_UPDATER::{updater_func_type}] > Initialized, beginning to update existing processes..."
-        )
+        self.header = f"NOVEL_UPDATER::{updater_func_type}"
+        self.pool = models.NovelProcessPool.objects.first()
+        if not self.pool:
+            raise NoProcessPoolExists(self.header)
+        COut.broadcast(message="Initialized, beginning to update existing processes...", header=self.header, style="init")
         self.__update(NovelUpdater.__get_updater_func(updater_func_type))
 
     @staticmethod
     def __updater_novel_profiler(process, scraper):
         temp_novel_profile = scraper.get_novel_profile(process.base_link)
         if not process.novel_profile:
-            novel_profile_obj = NovelProfile(
+            novel_profile_obj = models.NovelProfile(
                 name=temp_novel_profile["name"],
                 author_name=EnumManager.get_or_create_enum_of_type(
-                    temp_novel_profile["author_name"], Author
+                    temp_novel_profile["author_name"], models.Author
                 ),
                 number_of_chapters=temp_novel_profile["number_of_chapters"],
                 completion_status=EnumManager.get_or_create_enum_of_type(
-                    temp_novel_profile["completion_status"], NovelCompletionStatus
+                    temp_novel_profile["completion_status"], models.NovelCompletionStatus
                 ),
                 summary=temp_novel_profile["summary"],
             )
             novel_profile_obj.save()
             [
                 novel_profile_obj.categories.add(
-                    EnumManager.get_or_create_enum_of_type(category, NovelCategory)
+                    EnumManager.get_or_create_enum_of_type(category, models.NovelCategory)
                 )
                 for category in temp_novel_profile["categories"]
             ]
             [
                 novel_profile_obj.tags.add(
-                    EnumManager.get_or_create_enum_of_type(tag, NovelTag)
+                    EnumManager.get_or_create_enum_of_type(tag, models.NovelTag)
                 )
                 for tag in temp_novel_profile["tags"]
             ]
@@ -67,7 +69,7 @@ class NovelUpdater:
         ]
         process.novel_profile.completion_status = (
             EnumManager.get_or_create_enum_of_type(
-                temp_novel_profile["completion_status"], NovelCompletionStatus
+                temp_novel_profile["completion_status"], models.NovelCompletionStatus
             )
         )
         process.novel_profile.summary = temp_novel_profile["summary"]
@@ -84,7 +86,7 @@ class NovelUpdater:
             for profiled_chapter in process.novel_profile.chapter_profiles.all()
         ]
         new_chapters = [
-            ChapterProfile(
+            models.ChapterProfile(
                 novel_profile=process.novel_profile,
                 link=chapter["link"],
                 name=chapter["name"],
@@ -107,7 +109,7 @@ class NovelUpdater:
             already_exists=False
         ):
             temp_chapter_text = scraper.get_novel_chapter(chapter_profile)
-            chapter_text_obj = ChapterText(
+            chapter_text_obj = models.ChapterText(
                 chapter_profile=chapter_profile, text=temp_chapter_text
             )
             chapter_text_obj.save()
@@ -115,9 +117,7 @@ class NovelUpdater:
     @staticmethod
     def __get_updater_func(updater_func_type):
         if not NovelUpdaterType.is_updater_func_type_valid(updater_func_type):
-            raise Exception(
-                f" [~NOVEL_UPDATER] > {updater_func_type} is an invalid updater function type"
-            )
+            raise InvalidUpdaterFunctionType(updater_func_type)
         if updater_func_type == NovelUpdaterType.NOVEL_PROFILER:
             return NovelUpdater.__updater_novel_profiler
         elif updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_PROFILER:
@@ -132,7 +132,8 @@ class NovelUpdater:
                     self.updater_func_type, self.source_site
                 )
                 return process
-            except PermissionDenied:
+            except ProcessPoolLocked:
+                COut.broadcast(f"Process pool is locked, awaiting for {POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD}s before retrying...", header=self.header, style="warning")
                 sleep(POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD)
 
     def __update(self, updater_func):
@@ -141,16 +142,14 @@ class NovelUpdater:
             process = self.__request_available_process()
             if not process:
                 break
-            print(
-                f" [~NOVEL_UPDATER::{self.updater_func_type}] > Beginning update on process {process.base_link}..."
-            )
+            COut.broadcast(f"Beginning update on process {process.base_link}...", header=self.header, style="init")
             scraper = ScrapingManager(process.source_site)
             updater_func(process, scraper)
             process.release_process(self.updater_func_type)
             processes_updated += 1
-        print(
-            f" [~NOVEL_UPDATER::{self.updater_func_type}] > Couldn't find anymore available and/or update applicable processes. {processes_updated} processes updated."
-        )
+        
+        COut.broadcast(f"Couldn't find anymore available and/or update applicable processes. {processes_updated} processes updated.", header=self.header, style="success")
+        
         if self.updater_func_type == NovelUpdaterType.NOVEL_PROFILER:
             return NovelUpdater(
                 NovelUpdaterType.NOVEL_CHAPTER_PROFILER, self.source_site

@@ -1,9 +1,11 @@
 import os
+import novel_scraper.native.novel_updater as novel_updater
+import novel_scraper.native.ns_exceptions as nsexc
+from novel_scraper.native.novel_ppool_cfg import PROCESS_CONTROL_THRESHOLD
 from datetime import datetime, timezone, timedelta
 from django.db import models
-from django.core.exceptions import PermissionDenied
-from novel_scraper.native.novel_updater import NovelUpdaterType
-from novel_scraper.native.novel_ppool_cfg import PROCESS_CONTROL_THRESHOLD
+
+
 
 
 class Author(models.Model):
@@ -64,8 +66,8 @@ class NovelProcessPool(models.Model):
         return res
 
     def get_available_process(self, requesting_updater_func_type, requesting_updater_func_source_site):
-        if self.locked: raise PermissionDenied()
-        if not NovelUpdaterType.is_updater_func_type_valid(requesting_updater_func_type): raise Exception(f" [~NOVEL_PROCESS_POOL] > {requesting_updater_func_type} is an invalid requesting updater function type!")
+        if self.locked: raise nsexc.ProcessPoolLocked()
+        if not novel_updater.NovelUpdaterType.is_updater_func_type_valid(requesting_updater_func_type): raise nsexc.InvalidUpdaterFunctionType(requesting_updater_func_type)
         
         self.locked = True
         
@@ -75,9 +77,9 @@ class NovelProcessPool(models.Model):
             return None
         
         for process in processes:
-            if requesting_updater_func_type ==  NovelUpdaterType.NOVEL_PROFILER: process_time = process.last_processed_by_novel_profiler
-            elif requesting_updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_PROFILER: process_time = process.last_processed_by_novel_chapter_profiler
-            elif requesting_updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_UPDATER: process_time = process.last_processed_by_novel_chapter_updater
+            if requesting_updater_func_type ==  novel_updater.NovelUpdaterType.NOVEL_PROFILER: process_time = process.last_processed_by_novel_profiler
+            elif requesting_updater_func_type == novel_updater.NovelUpdaterType.NOVEL_CHAPTER_PROFILER: process_time = process.last_processed_by_novel_chapter_profiler
+            elif requesting_updater_func_type == novel_updater.NovelUpdaterType.NOVEL_CHAPTER_UPDATER: process_time = process.last_processed_by_novel_chapter_updater
             if (datetime.now(timezone.utc) - process_time).seconds // 60 >= PROCESS_CONTROL_THRESHOLD:
                 process.activate_process()
                 self.locked = False
@@ -101,15 +103,15 @@ class NovelProcess(models.Model):
     base_link = models.CharField(max_length=8128)
 
     def activate_process(self):
-        if self.is_being_processed: raise Exception(f" [~NOVEL_PROCESS::{self.source_site}::{self.base_link}] > Trying to activate an already active process!")
+        if self.is_being_processed: raise nsexc.ProcessAlreadyActive(self.base_link)
         self.is_being_processed = True
         self.save()
     
     def release_process(self, releaser_updater_func_type):
-        if not self.is_being_processed: raise Exception(f" [~NOVEL_PROCESS::{self.source_site}::{self.base_link}] > Trying to release an already inactive process!")
-        if releaser_updater_func_type ==  NovelUpdaterType.NOVEL_PROFILER: self.last_processed_by_novel_profiler = datetime.now(timezone.utc)
-        elif releaser_updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_PROFILER: self.last_processed_by_novel_chapter_profiler = datetime.now(timezone.utc)
-        elif releaser_updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_UPDATER: self.last_processed_by_novel_chapter_updater = datetime.now(timezone.utc)
+        if not self.is_being_processed: raise nsexc.ProcessAlreadyInactive(self.base_link)
+        if releaser_updater_func_type ==  novel_updater.NovelUpdaterType.NOVEL_PROFILER: self.last_processed_by_novel_profiler = datetime.now(timezone.utc)
+        elif releaser_updater_func_type == novel_updater.NovelUpdaterType.NOVEL_CHAPTER_PROFILER: self.last_processed_by_novel_chapter_profiler = datetime.now(timezone.utc)
+        elif releaser_updater_func_type == novel_updater.NovelUpdaterType.NOVEL_CHAPTER_UPDATER: self.last_processed_by_novel_chapter_updater = datetime.now(timezone.utc)
         self.is_being_processed = False
         self.save()
     

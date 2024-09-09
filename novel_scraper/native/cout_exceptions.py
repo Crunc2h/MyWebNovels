@@ -1,4 +1,4 @@
-from novel_scraper.native.cout_custom import COut
+import novel_scraper.native.cout_custom as cout
 
 class COutException(Exception):
     def __init__(self, message):
@@ -7,5 +7,6 @@ class COutException(Exception):
 
 class InvalidStyleException(Exception):
     def __init__(self, style):
-        self.message = f"{style} is an invalid style string!"
+        self.message = cout.COut.get_styled(f"{style} is an invalid style string!", header="CONSOLE_OUT")
         super().__init__(self.message)
+
