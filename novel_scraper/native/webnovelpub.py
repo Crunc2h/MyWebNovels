@@ -9,25 +9,14 @@ def webnovelpub__scrape_all_novel_links(base_url=BROWSE_BASE_URL, default_implic
     header = "WEBNOVELPUB::NOVEL_LINKS_SCRAPER"
     driver = webdriver.Chrome()
     driver.get(base_url)
-    max_page = "-1"
-    current_page = "0"
-    
-    page_links = []
+
+    pages_traversed = 0
     novel_links = []
 
     COut.broadcast(message=f"Beginning scraping novel links from {base_url}...", style="init", header=header)
 
-    while int(current_page) <= int(max_page) or max_page == "-1":
+    while True:
         novels_on_page = driver.find_elements(By.CSS_SELECTOR, ".novel-item a")
-        all_page_numbers_on_page = driver.find_element(By.CSS_SELECTOR, "ul.pagination").find_elements(By.CSS_SELECTOR, "li a")
-
-        for page in all_page_numbers_on_page:
-            if page.text not in [">>", ">", "<", "<<"]:
-                page_links.append((page.text, page.get_attribute("href")))
-        
-        current_page = driver.find_element(By.CSS_SELECTOR, "li.active").text
-        if max_page == "-1": max_page = page_links[-1][1].get_attribute("href").split("page=")[1]
-
         novels_links_added = 0
         for i in range(0, len(novels_on_page)):
             href = novels_on_page[i].get_attribute("href")
@@ -37,16 +26,17 @@ def webnovelpub__scrape_all_novel_links(base_url=BROWSE_BASE_URL, default_implic
 
         driver.implicitly_wait(default_implicit_wait)
 
-        COut.broadcast(message=f"Current page is {current_page}", style="progress", header=header)
+        COut.broadcast(message=f"{pages_traversed} pages traversed", style="progress", header=header)
         COut.broadcast(message=f"Found {novels_links_added} novels", style="progress", header=header)
 
-        if current_page == max_page and max_page != 1:
+        try:
+            next_page = driver.find_element(By.CSS_SELECTOR, ".PagedList-skipToNext").find_element(By.TAG_NAME, "a").get_attribute("href")
+            pages_traversed += 1
+            driver.get(next_page)
+        except NoSuchElementException:
             COut.broadcast(message=f"Scraping complete novel base links is complete.", style="success", header=header)
-            COut.broadcast(message=f"Found a total of {novel_links} novels from {max_page} pages.", style="success", header=header)
+            COut.broadcast(message=f"Found a total of {novel_links} novels from {pages_traversed} pages.", style="success", header=header)
             return novel_links
-        
-        next_page = list(filter(lambda page: int(current_page) + 1 == int(page[0]), page_links))[0][1]
-        driver.get(next_page)
 
 def webnovelpub__scrape_novel_profile(novel_base_link, default_implicit_wait=1): 
     header = "WEBNOVELPUB::NOVEL_PROFILE_SCRAPER"
@@ -58,6 +48,7 @@ def webnovelpub__scrape_novel_profile(novel_base_link, default_implicit_wait=1):
     name = driver.find_element(By.CSS_SELECTOR, ".novel-title").text
     author_name = driver.find_element(By.CSS_SELECTOR, ".author").text
     number_of_chapters = int(driver.find_element(By.CSS_SELECTOR, ".header-stats > span:nth-child(1) > strong:nth-child(1)").text) 
+    
     try: 
         completion_status = driver.find_element(By.CSS_SELECTOR, ".completed").text
     except NoSuchElementException:
@@ -94,21 +85,11 @@ def webnovelpub__scrape_novel_chapter_profiles(novel_base_link, default_implicit
     driver.implicitly_wait(default_implicit_wait)
     
     chapter_profiles = []
-    page_links = []
+    pages_traversed = 0
 
-    max_page = "-1"
-    current_page = "0"
-
-    while int(current_page) <= int(max_page) or max_page == "-1":
+    while True:
         chapters_on_page = driver.find_element(By.CSS_SELECTOR, ".chapter-list").find_elements(By.TAG_NAME, "li")
-        all_page_numbers_on_page = driver.find_element(By.CSS_SELECTOR, "ul.pagination").find_elements(By.CSS_SELECTOR, "li a")
 
-        for page in all_page_numbers_on_page:
-            if page.text not in [">>", ">", "<", "<<"]:
-                page_links.append((page.text, page.get_attribute("href")))
-
-        current_page = driver.find_element(By.CSS_SELECTOR, "li.active").text
-        if max_page == "-1": max_page = page_links[-1][1].split("page=")[1]
 
         chapter_profiles_added = 0
         for i in range(0, len(chapters_on_page)):
@@ -129,17 +110,18 @@ def webnovelpub__scrape_novel_chapter_profiles(novel_base_link, default_implicit
 
         driver.implicitly_wait(default_implicit_wait)
 
-        COut.broadcast(message=f"Current page is {current_page}", style="progress", header=header)
+        COut.broadcast(message=f"{pages_traversed} pages traversed", style="progress", header=header)
         COut.broadcast(message=f"Found {chapter_profiles_added} chapter profiles", style="progress", header=header)
 
-        if current_page == max_page:
-            COut.broadcast(message=f"Scraping chapter profiles from {novel_base_link} is complete.", style="success", header=header)
-            COut.broadcast(message=f"Found a total of {len(chapter_profiles)} chapter profiles from {max_page} pages.", style="success", header=header)
-            return chapter_profiles
-        
-        next_page = list(filter(lambda page: int(current_page) + 1 == int(page[0]), page_links))[0][1]
-        driver.get(next_page)
 
+        try:
+            next_page = driver.find_element(By.CSS_SELECTOR, ".PagedList-skipToNext").find_element(By.TAG_NAME, "a").get_attribute("href")
+            pages_traversed += 1
+            driver.get(next_page)
+        except NoSuchElementException:
+            COut.broadcast(message=f"Scraping chapter profiles from {novel_base_link} is complete.", style="success", header=header)
+            COut.broadcast(message=f"Found a total of {len(chapter_profiles)} chapter profiles from {pages_traversed} pages.", style="success", header=header)
+            return chapter_profiles
 
 def webnovelpub__scrape_novel_chapter(chapter_profile, default_implicit_wait=1):
     header = "WEBNOVELPUB::NOVEL_CHAPTERS_SCRAPER"
