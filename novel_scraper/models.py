@@ -3,6 +3,8 @@ import novel_scraper.native.ns_exceptions as nsexc
 from novel_scraper.native.novel_ppool_cfg import PROCESS_CONTROL_THRESHOLD
 from datetime import datetime, timezone, timedelta
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class Author(models.Model):
@@ -149,19 +151,13 @@ class NovelProcess(models.Model):
     )
 
     is_being_processed = models.BooleanField(default=False)
-    last_processed_by_novel_profiler = models.DateTimeField(
-        default=datetime.now(timezone.utc)
-        - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5)
-    )
+    last_processed_by_novel_profiler = models.DateField(blank=True, null=True)
     last_processed_by_novel_chapter_profiler = models.DateTimeField(
-        default=datetime.now(timezone.utc)
-        - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5)
+        blank=True, null=True
     )
     last_processed_by_novel_chapter_updater = models.DateTimeField(
-        default=datetime.now(timezone.utc)
-        - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5)
+        blank=True, null=True
     )
-
     source_site = models.CharField(max_length=256)
     base_link = models.CharField(max_length=8128)
 
@@ -188,3 +184,20 @@ class NovelProcess(models.Model):
             self.last_processed_by_novel_chapter_updater = datetime.now(timezone.utc)
         self.is_being_processed = False
         self.save()
+
+
+@receiver(post_save, sender=NovelProcess)
+def handle_init(sender, instance, created, **kwargs):
+    if created:
+        instance.last_processed_by_novel_profiler = models.DateTimeField(
+            default=datetime.now(timezone.utc)
+            - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5)
+        )
+        instance.last_processed_by_novel_chapter_profiler = models.DateTimeField(
+            default=datetime.now(timezone.utc)
+            - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5)
+        )
+        instance.last_processed_by_novel_chapter_updater = models.DateTimeField(
+            default=datetime.now(timezone.utc)
+            - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5)
+        )
