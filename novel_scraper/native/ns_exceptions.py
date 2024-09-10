@@ -84,3 +84,33 @@ class NovelProcessFailureException(NovelScraperException):
             header="NOVEL_UPDATER::" + process_failure_exc.header,
         )
         super().__init__(self.message)
+
+
+class NoDriverAvailableException(NovelScraperException):
+    def __init__(self):
+        self.message = COut.get_styled(
+            "No drivers available for updaters!", header="DRIVER_POOL"
+        )
+        super().__init__(self.message)
+
+
+class DriverPoolLockedException(NovelScraperException):
+    def __init__(self):
+        self.message = COut.get_styled("Driver pool is locked!", header="DRIVER_POOL")
+        super().__init__(self.message)
+
+
+class DriverAlreadyCapturedException(NovelScraperException):
+    def __init__(self, driver):
+        self.message = COut.get_styled(
+            f"Driver  id_{driver.id} is already captured!", header="DRIVER_POOL"
+        )
+        super().__init__(self.message)
+
+
+class DriverAlreadyReleasedException(NovelScraperException):
+    def __init__(self, driver):
+        self.message = COut.get_styled(
+            f"Driver  id_{driver.id} is already released!", header="DRIVER_POOL"
+        )
+        super().__init__(self.message)
