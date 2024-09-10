@@ -1,13 +1,17 @@
+import novel_scraper.models as models
+import novel_scraper.native.novel_ppool_cfg as npcfg
 from novel_scraper.native.enum_manager import EnumManager
 from novel_scraper.native.scraping_manager import ScrapingManager
-from novel_scraper.native.cout_custom import COut
+from novel_scraper.native.cout_custom import COut, COutLoading
 from novel_scraper.native.ns_exceptions import (
     NoProcessPoolExistsException,
     ProcessPoolLockedException,
     InvalidUpdaterFuncTypeException,
+    ScraperProcessFailureException,
+    NovelProcessFailureException,
+    NOVEL_PROCESS_FAILURE_RETRY_BROADCAST,
 )
 from novel_scraper.native.novel_ppool_cfg import POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD
-import novel_scraper.models as models
 from time import sleep
 
 
@@ -31,20 +35,28 @@ class NovelUpdater:
     def __init__(self, updater_func_type, source_site) -> None:
         self.source_site = source_site
         self.updater_func_type = updater_func_type
+        self.updater_func = NovelUpdater.__get_updater_func(updater_func_type)
         self.header = f"NOVEL_UPDATER::{updater_func_type}"
         self.pool = models.NovelProcessPool.objects.first()
+        self.loader = COutLoading()
         if not self.pool:
             raise NoProcessPoolExistsException(self.header)
         COut.broadcast(
-            message="Initialized, beginning to update existing processes...",
+            message="Initialization successful",
             header=self.header,
-            style="init",
+            style="success",
         )
-        self.__update(NovelUpdater.__get_updater_func(updater_func_type))
+        self.__update(
+            npcfg.PROCESS_PROGRESS_FAILURE_GRACE_PERIOD, self.updater_func, self.loader
+        )
 
     @staticmethod
-    def __updater_novel_profiler(process, scraper):
-        temp_novel_profile = scraper.get_novel_profile(process.base_link)
+    def __updater_novel_profiler(
+        process, scraper, progress_failure_grace_period, loader
+    ):
+        temp_novel_profile = scraper.get_novel_profile(
+            progress_failure_grace_period, process.base_link, loader
+        )
         if not process.novel_profile:
             novel_profile_obj = models.NovelProfile(
                 name=temp_novel_profile["name"],
@@ -86,10 +98,14 @@ class NovelUpdater:
         process.novel_profile.summary = temp_novel_profile["summary"]
 
     @staticmethod
-    def __updater_novel_chapter_profiler(process, scraper):
+    def __updater_novel_chapter_profiler(
+        process, scraper, progress_failure_grace_period, loader
+    ):
         if not process.novel_profile:
             return
-        temp_chapter_profiles = scraper.get_novel_chapter_profiles(process.base_link)
+        temp_chapter_profiles = scraper.get_novel_chapter_profiles(
+            progress_failure_grace_period, process.base_link, loader
+        )
         if len(temp_chapter_profiles) == process.novel_profile.chapter_profiles.count():
             return
         profiled_chapters = [
@@ -111,7 +127,9 @@ class NovelUpdater:
             chapter.save()
 
     @staticmethod
-    def __updater_novel_chapter_updater(process, scraper):
+    def __updater_novel_chapter_updater(
+        process, scraper, progress_failure_grace_period, loader
+    ):
         if not process.novel_profile:
             return
         if process.novel_profile.chapter_profiles.count() == 0:
@@ -119,7 +137,9 @@ class NovelUpdater:
         for chapter_profile in process.novel_profile.chapter_profiles.filter(
             already_exists=False
         ):
-            temp_chapter_text = scraper.get_novel_chapter(chapter_profile)
+            temp_chapter_text = scraper.get_novel_chapter(
+                progress_failure_grace_period, chapter_profile, loader
+            )
             chapter_text_obj = models.ChapterText(
                 chapter_profile=chapter_profile, text=temp_chapter_text
             )
@@ -151,19 +171,43 @@ class NovelUpdater:
                 )
                 sleep(POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD)
 
-    def __update(self, updater_func):
+    def __update(self, progress_failure_grace_period, updater_func, loader):
         processes_updated = 0
         while True:
+            GRACE_PERIOD_CURRENT = 0
             process = self.__request_available_process()
             if not process:
                 break
+
             COut.broadcast(
                 f"Beginning update on process {process.base_link}...",
                 header=self.header,
                 style="init",
             )
+
             scraper = ScrapingManager(process.source_site)
-            updater_func(process, scraper)
+            while True:
+                try:
+                    updater_func(
+                        process, scraper, progress_failure_grace_period, loader
+                    )
+                    break
+                except ScraperProcessFailureException as ex:
+                    GRACE_PERIOD_CURRENT += 1
+                    if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
+                        process.release_process(self.updater_func_type)
+                        raise NovelProcessFailureException(ex, process)
+                    COut.broadcast(
+                        message=NOVEL_PROCESS_FAILURE_RETRY_BROADCAST.format(
+                            current_grace_period=GRACE_PERIOD_CURRENT
+                        ),
+                        style="warning",
+                        header="NOVEL_UPDATER::" + ex.header,
+                    )
+                except Exception as ex:
+                    process.release_process(self.updater_func_type)
+                    raise ex
+
             process.release_process(self.updater_func_type)
             processes_updated += 1
 

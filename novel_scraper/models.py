@@ -81,7 +81,15 @@ class NovelProcessPool(models.Model):
         self.locked = True
         if self.processes.filter(base_link=process_base_link).count() == 0:
             process = NovelProcess(
-                pool=self, base_link=process_base_link, source_site=process_source_site
+                pool=self,
+                base_link=process_base_link,
+                source_site=process_source_site,
+                last_processed_by_novel_profiler=datetime.now(timezone.utc)
+                - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5),
+                last_processed_by_novel_chapter_profiler=datetime.now(timezone.utc)
+                - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5),
+                last_processed_by_novel_chapter_updater=datetime.now(timezone.utc)
+                - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5),
             )
             process.save()
         self.locked = False
@@ -151,13 +159,9 @@ class NovelProcess(models.Model):
     )
 
     is_being_processed = models.BooleanField(default=False)
-    last_processed_by_novel_profiler = models.DateField(blank=True, null=True)
-    last_processed_by_novel_chapter_profiler = models.DateTimeField(
-        blank=True, null=True
-    )
-    last_processed_by_novel_chapter_updater = models.DateTimeField(
-        blank=True, null=True
-    )
+    last_processed_by_novel_profiler = models.DateTimeField()
+    last_processed_by_novel_chapter_profiler = models.DateTimeField()
+    last_processed_by_novel_chapter_updater = models.DateTimeField()
     source_site = models.CharField(max_length=256)
     base_link = models.CharField(max_length=8128)
 
@@ -184,20 +188,3 @@ class NovelProcess(models.Model):
             self.last_processed_by_novel_chapter_updater = datetime.now(timezone.utc)
         self.is_being_processed = False
         self.save()
-
-
-@receiver(post_save, sender=NovelProcess)
-def handle_init(sender, instance, created, **kwargs):
-    if created:
-        instance.last_processed_by_novel_profiler = models.DateTimeField(
-            default=datetime.now(timezone.utc)
-            - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5)
-        )
-        instance.last_processed_by_novel_chapter_profiler = models.DateTimeField(
-            default=datetime.now(timezone.utc)
-            - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5)
-        )
-        instance.last_processed_by_novel_chapter_updater = models.DateTimeField(
-            default=datetime.now(timezone.utc)
-            - timedelta(minutes=PROCESS_CONTROL_THRESHOLD + 5)
-        )

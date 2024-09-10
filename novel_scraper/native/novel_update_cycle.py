@@ -1,19 +1,21 @@
 import os
 import novel_scraper.models as models
-import novel_scraper.native.cout_custom as cout
+import novel_scraper.native.novel_ppool_cfg as npcfg
 import novel_scraper.native.ns_exceptions as nsexc
 from novel_scraper.native.source_site import SourceSite
 from novel_scraper.native.scraping_manager import ScrapingManager
-from novel_scraper.native.cout_custom import COut
+from novel_scraper.native.cout_custom import COut, COutLoading
 from datetime import datetime, timezone
+from time import sleep
 
 
 class NovelUpdateCycle:
     def __init__(self, max_concurrent_ops_per_site) -> None:
         self.header = "DB_UPDATE_CYCLE"
+        self.loader = COutLoading()
         self.t_start = datetime.now(timezone.utc)
         self.sites = SourceSite.all()
-        COut.broadcast("Beginning update...", style="init", header=self.header)
+        COut.broadcast("Initialization successful", style="success", header=self.header)
 
         if models.NovelProcessPool.objects.count() > 1:
             raise nsexc.MultipleProcessPoolsExistException(self.header)
@@ -32,10 +34,18 @@ class NovelUpdateCycle:
             )
         else:
             self.pool = models.NovelProcessPool.objects.first()
+
         sites_and_links = []
         for site in self.sites:
             scraper = ScrapingManager(site)
-            sites_and_links.append((scraper.get_all_novel_links(), site))
+            sites_and_links.append(
+                (
+                    scraper.get_all_novel_links(
+                        npcfg.PROCESS_PROGRESS_FAILURE_GRACE_PERIOD, loader=self.loader
+                    ),
+                    site,
+                )
+            )
 
         """
         models.NovelProcess.objects.all().delete()
@@ -58,13 +68,25 @@ class NovelUpdateCycle:
         for site in self.sites:
             for i in range(0, max_concurrent_ops_per_site):
                 NovelUpdateCycle.spawn_novel_profiler(site)
+                COut.broadcast(
+                    f"Spawned a new profiler for {site}",
+                    style="success",
+                    header=self.header,
+                )
+
+        while self.pool.processes.filter(is_being_processed=True).count() > 0:
+            COut.broadcast(
+                "Update in progress...",
+                header=self.header,
+                style="progress",
+                loader=self.loader,
+            )
+            sleep(0.5)
 
     @staticmethod
     def spawn_novel_profiler(source_site):
         command = (
-            "gnome-terminal -e "
-            + '"'
+            "gnome-terminal -- "
             + f"bash -c 'python3 manage.py spawn_novel_profiler '{source_site}'; exec bash'"
-            + '"'
         )
         os.system(command)
