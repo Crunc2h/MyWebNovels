@@ -14,8 +14,6 @@ class NovelUpdateCycle:
         self.loader = cout.COutLoading()
         self.t_start = datetime.now(timezone.utc)
         self.sites = NovelSourceSite.objects.all()
-        ### TEMPORARY DEBUG
-        NovelProcessPool.objects.all().delete()
 
         if NovelProcessPool.objects.count() > 1:
             raise nu_exc.MultipleNovelProcessPoolsExistException(self.header)
@@ -58,20 +56,26 @@ class NovelUpdateCycle:
                 style="progress",
                 loader=self.loader,
             )
-            sleep(0.2)
+            sleep(0.5)
 
+        cout.COut.broadcast(
+            "Initializing new processes...",
+            header=self.header,
+            style="progress",
+            loader=self.loader,
+        )
+        sleep(5)
         for temp_link in TempNovelLink.objects.all():
             self.novel_process_pool.initialize_process(
                 temp_link.link, temp_link.source_site
             )
-
         cout.COut.broadcast(
             "Initialized new processes form temporary links",
             header=self.header,
             style="success",
-            loader=self.loader,
         )
-
+        sleep(5)
+        NovelUpdateCycle.update_report()
         for site in self.sites:
             for i in range(0, max_concurrent_ops_per_site):
                 NovelUpdateCycle.spawn_novel_profiler(site.name)
@@ -91,7 +95,7 @@ class NovelUpdateCycle:
                 style="progress",
                 loader=self.loader,
             )
-            sleep(0.05)
+            sleep(0.5)
 
     @staticmethod
     def spawn_novel_profiler(source_site):
@@ -105,6 +109,14 @@ class NovelUpdateCycle:
     def spawn_novel_links_collector(source_site):
         command = (
             "gnome-terminal -- "
-            + f"bash -c 'python3 manage.py spawn_novel_links_collector '{source_site}'; exec bash'"
+            + f"bash -c 'python3 manage.py spawn_novel_links_collector '{source_site}';'"
+        )
+        os.system(command)
+
+    @staticmethod
+    def update_report():
+        command = (
+            "gnome-terminal -- "
+            + f"bash -c 'python3 manage.py update_report; exec bash'"
         )
         os.system(command)

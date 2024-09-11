@@ -3,8 +3,19 @@ import novel_scraper.native.ns_exceptions as ns_exc
 from novel_scraper.native.cout_custom import Broadcasts
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
-from selenium import webdriver
+from fake_useragent import UserAgent
+from proxy_randomizer import RegisteredProviders
+import undetected_chromedriver as uc
 
+UA = UserAgent()
+RP = RegisteredProviders()
+RP.parse_providers()
+
+
+## USE FAKE USER AGENT
+## USE ROTATING PROXY
+## ADD MORE SQLITE DB WAIT TIME
+## CHANGE DRIVER CLICK
 BROWSE_BASE_URL = (
     "https://www.webnovelworld.org/browse/genre-all-25060123/order-new/status-all"
 )
@@ -30,10 +41,12 @@ def webnovelpub__scrape_all_novel_links(
         try:
             pages_traversed = 0
             novel_links = []
-            options = webdriver.ChromeOptions()
+            options = uc.ChromeOptions()
+            options.add_argument(f"user-agent={UA.chrome}")
+            options.add_argument(f"--proxy-server={RP.get_random_proxy()}")
             options.add_argument("--start-maximized")
             options.add_argument("--headless")
-            driver = webdriver.Chrome(options=options)
+            driver = uc.Chrome(options=options)
             driver.get(base_url)
 
             while True:
@@ -117,10 +130,10 @@ def webnovelpub__scrape_novel_profile(
 
     while True:
         try:
-            options = webdriver.ChromeOptions()
+            options = uc.ChromeOptions()
             options.add_argument("--start-maximized")
             options.add_argument("--headless")
-            driver = webdriver.Chrome(options=options)
+            driver = uc.Chrome(options=options)
             driver.get(novel_base_link)
             name = driver.find_element(By.CSS_SELECTOR, ".novel-title").text
             author_name = driver.find_element(By.CSS_SELECTOR, ".author").text
@@ -187,7 +200,8 @@ def webnovelpub__scrape_novel_profile(
                 )
             cout.COut.broadcast(
                 message=Broadcasts.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
-                    current_grace_period=GRACE_PERIOD_CURRENT
+                    current_grace_period=GRACE_PERIOD_CURRENT,
+                    max_grace_period=progress_failure_grace_period,
                 ),
                 style="warning",
                 header=header,
@@ -211,10 +225,10 @@ def webnovelpub__scrape_novel_chapter_profiles(
 
     while True:
         try:
-            options = webdriver.ChromeOptions()
+            options = uc.ChromeOptions()
             options.add_argument("--start-maximized")
             options.add_argument("--headless")
-            driver = webdriver.Chrome(options=options)
+            driver = uc.Chrome(options=options)
             driver.get(novel_base_link)
             novel_chapters_button = driver.find_element(
                 By.CSS_SELECTOR, "a.grdbtn:nth-child(1)"
@@ -299,7 +313,8 @@ def webnovelpub__scrape_novel_chapter_profiles(
                 )
             cout.COut.broadcast(
                 message=Broadcasts.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
-                    current_grace_period=GRACE_PERIOD_CURRENT
+                    current_grace_period=GRACE_PERIOD_CURRENT,
+                    max_grace_period=progress_failure_grace_period,
                 ),
                 style="warning",
                 header=header,
@@ -323,10 +338,10 @@ def webnovelpub__scrape_novel_chapter(
     )
     while True:
         try:
-            options = webdriver.ChromeOptions()
+            options = uc.ChromeOptions()
             options.add_argument("--start-maximized")
             options.add_argument("--headless")
-            driver = webdriver.Chrome(options=options)
+            driver = uc.Chrome(options=options)
             driver.get(chapter_profile.link)
             paragraph_elements = driver.find_element(
                 By.ID, "chapter-container"
@@ -352,7 +367,8 @@ def webnovelpub__scrape_novel_chapter(
                 )
             cout.COut.broadcast(
                 message=Broadcasts.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
-                    current_grace_period=GRACE_PERIOD_CURRENT
+                    current_grace_period=GRACE_PERIOD_CURRENT,
+                    max_grace_period=progress_failure_grace_period,
                 ),
                 style="warning",
                 header=header,

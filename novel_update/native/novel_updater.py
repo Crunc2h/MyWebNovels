@@ -5,6 +5,7 @@ import novel_processor.native.exceptions.novel_processor_exceptions as np_exc
 import novel_scraper.native.ns_exceptions as Broadcasts
 import novel_update.native.exceptions.novel_update_exceptions as nu_exc
 import novel_processor.models as np_models
+import enums_configs.models as ec_models
 import enums_configs.native.novel_update_cfg as nu_cfg
 import novel_storage.models as nst_models
 from enums_configs.native.enum_manager import EnumManager
@@ -78,7 +79,7 @@ class NovelUpdater:
                 cout.COut.broadcast(
                     message=cout.Broadcasts.NOVEL_LINKS_COLLECTOR_FAILURE_RETRY_BROADCAST.format(
                         current_grace_period=GRACE_PERIOD_CURRENT,
-                        max_grace_period=self.progress_failure_grace_period,
+                        max_grace_period=self.process_failure_grace_period,
                     ),
                     style="warning",
                     header=self.header + "::" + ex.header,
@@ -86,20 +87,19 @@ class NovelUpdater:
 
     def __updater_novel_profiler(self, process, scraper):
         temp_novel_profile = scraper.get_novel_profile(
-            self.process_failure_grace_period,
             process.base_link,
             self.loader,
         )
         if not process.novel_profile:
-            novel_profile_obj = models.NovelProfile(
+            novel_profile_obj = nst_models.NovelProfile(
                 name=temp_novel_profile["name"],
                 author_name=EnumManager.get_or_create_enum_of_type(
-                    temp_novel_profile["author_name"], models.Author
+                    temp_novel_profile["author_name"], ec_models.Author
                 ),
                 number_of_chapters=temp_novel_profile["number_of_chapters"],
                 completion_status=EnumManager.get_or_create_enum_of_type(
                     temp_novel_profile["completion_status"],
-                    models.NovelCompletionStatus,
+                    ec_models.NovelCompletionStatus,
                 ),
                 summary=temp_novel_profile["summary"],
             )
@@ -107,14 +107,14 @@ class NovelUpdater:
             [
                 novel_profile_obj.categories.add(
                     EnumManager.get_or_create_enum_of_type(
-                        category, models.NovelCategory
+                        category, ec_models.NovelCategory
                     )
                 )
                 for category in temp_novel_profile["categories"]
             ]
             [
                 novel_profile_obj.tags.add(
-                    EnumManager.get_or_create_enum_of_type(tag, models.NovelTag)
+                    EnumManager.get_or_create_enum_of_type(tag, ec_models.NovelTag)
                 )
                 for tag in temp_novel_profile["tags"]
             ]
@@ -125,7 +125,7 @@ class NovelUpdater:
         ]
         process.novel_profile.completion_status = (
             EnumManager.get_or_create_enum_of_type(
-                temp_novel_profile["completion_status"], models.NovelCompletionStatus
+                temp_novel_profile["completion_status"], ec_models.NovelCompletionStatus
             )
         )
         process.novel_profile.summary = temp_novel_profile["summary"]
@@ -134,7 +134,6 @@ class NovelUpdater:
         if not process.novel_profile:
             return
         temp_chapter_profiles = scraper.get_novel_chapter_profiles(
-            self.progress_failure_grace_period,
             process.base_link,
             self.loader,
         )
@@ -145,7 +144,7 @@ class NovelUpdater:
             for profiled_chapter in process.novel_profile.chapter_profiles.all()
         ]
         new_chapters = [
-            models.ChapterProfile(
+            nst_models.ChapterProfile(
                 novel_profile=process.novel_profile,
                 link=chapter["link"],
                 name=chapter["name"],
@@ -167,11 +166,10 @@ class NovelUpdater:
             already_exists=False
         ):
             temp_chapter_text = scraper.get_novel_chapter(
-                self.progress_failure_grace_period,
                 chapter_profile,
                 self.loader,
             )
-            chapter_text_obj = models.ChapterText(
+            chapter_text_obj = nst_models.ChapterText(
                 chapter_profile=chapter_profile, text=temp_chapter_text
             )
             chapter_text_obj.save()
@@ -219,18 +217,18 @@ class NovelUpdater:
             scraper = ScrapingManager(process.source_site)
             while True:
                 try:
-                    self.updater_func(process, scraper, self.loader)
+                    self.updater_func(process, scraper)
                     GRACE_PERIOD_CURRENT = 0
                     break
                 except Broadcasts.ScraperProgressFailureException as ex:
                     GRACE_PERIOD_CURRENT += 1
-                    if GRACE_PERIOD_CURRENT >= self.progress_failure_grace_period:
+                    if GRACE_PERIOD_CURRENT >= self.process_failure_grace_period:
                         process.release_process(self.updater_func_type)
                         raise nu_exc.NovelProcessFailureException(ex, process)
                     cout.COut.broadcast(
                         message=cout.Broadcasts.NOVEL_PROCESS_FAILURE_RETRY_BROADCAST.format(
                             current_grace_period=GRACE_PERIOD_CURRENT,
-                            max_grace_period=self.progress_failure_grace_period,
+                            max_grace_period=self.process_failure_grace_period,
                         ),
                         style="warning",
                         header=self.header + "::" + ex.header,
