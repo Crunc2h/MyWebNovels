@@ -4,7 +4,7 @@ import novel_scraper.native.cout_custom as cout
 class NovelProcessorException(Exception):
     def __init__(self, message, header) -> None:
         self.message = cout.COut.get_styled(
-            message=message, header=header, style="failure"
+            message=message, header=header, style="fail"
         )
         super().__init__(self.message)
 

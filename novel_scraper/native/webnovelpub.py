@@ -1,9 +1,9 @@
 import novel_scraper.native.cout_custom as cout
 import novel_scraper.native.ns_exceptions as ns_exc
-from selenium import webdriver
+from novel_scraper.native.cout_custom import Broadcasts
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
-
+from selenium import webdriver
 
 BROWSE_BASE_URL = (
     "https://www.webnovelworld.org/browse/genre-all-25060123/order-new/status-all"
@@ -30,7 +30,6 @@ def webnovelpub__scrape_all_novel_links(
         try:
             pages_traversed = 0
             novel_links = []
-
             options = webdriver.ChromeOptions()
             options.add_argument("--start-maximized")
             options.add_argument("--headless")
@@ -74,20 +73,24 @@ def webnovelpub__scrape_all_novel_links(
                         style="success",
                         header=header,
                     )
+                    driver.close()
+                    driver.quit()
                     return novel_links
         except Exception as ex:
             GRACE_PERIOD_CURRENT += 1
             if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
                 cout.COut.broadcast(
-                    message=ns_exc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
+                    message=Broadcasts.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
                     style="warning",
                     header=header,
                 )
-                raise ns_exc.ScraperProcessFailureException(
+                driver.close()
+                driver.quit()
+                raise ns_exc.ScraperProgressFailureException(
                     ex, driver.current_url, header
                 )
             cout.COut.broadcast(
-                message=ns_exc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
+                message=Broadcasts.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
                     current_grace_period=GRACE_PERIOD_CURRENT,
                     max_grace_period=progress_failure_grace_period,
                 ),
@@ -159,7 +162,8 @@ def webnovelpub__scrape_novel_profile(
             ]
 
             driver.implicitly_wait(default_implicit_wait)
-
+            driver.close()
+            driver.quit()
             return {
                 "author_name": author_name,
                 "name": name,
@@ -173,14 +177,16 @@ def webnovelpub__scrape_novel_profile(
             GRACE_PERIOD_CURRENT += 1
             if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
                 cout.COut.broadcast(
-                    message=ns_exc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
+                    message=Broadcasts.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
                     style="warning",
                 )
-                raise ns_exc.ScraperProcessFailureException(
+                driver.close()
+                driver.quit()
+                raise ns_exc.ScraperProgressFailureException(
                     ex, driver.current_url, header
                 )
             cout.COut.broadcast(
-                message=ns_exc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
+                message=Broadcasts.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
                     current_grace_period=GRACE_PERIOD_CURRENT
                 ),
                 style="warning",
@@ -189,7 +195,10 @@ def webnovelpub__scrape_novel_profile(
 
 
 def webnovelpub__scrape_novel_chapter_profiles(
-    progress_failure_grace_period, loader, novel_base_link, default_implicit_wait=1
+    progress_failure_grace_period,
+    loader,
+    novel_base_link,
+    default_implicit_wait=1,
 ):
     header = "WEBNOVELPUB::NOVEL_CHAPTER_PROFILES_SCRAPER"
     GRACE_PERIOD_CURRENT = 0
@@ -272,20 +281,24 @@ def webnovelpub__scrape_novel_chapter_profiles(
                         style="success",
                         header=header,
                     )
+                    driver.close()
+                    driver.quit()
                     return chapter_profiles
         except Exception as ex:
             GRACE_PERIOD_CURRENT += 1
             if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
                 cout.COut.broadcast(
-                    message=ns_exc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
+                    message=Broadcasts.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
                     style="warning",
                     header=header,
                 )
-                raise ns_exc.ScraperProcessFailureException(
+                driver.close()
+                driver.quit()
+                raise ns_exc.ScraperProgressFailureException(
                     ex, driver.current_url, header
                 )
             cout.COut.broadcast(
-                message=ns_exc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
+                message=Broadcasts.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
                     current_grace_period=GRACE_PERIOD_CURRENT
                 ),
                 style="warning",
@@ -294,7 +307,10 @@ def webnovelpub__scrape_novel_chapter_profiles(
 
 
 def webnovelpub__scrape_novel_chapter(
-    progress_failure_grace_period, loader, chapter_profile, default_implicit_wait=1
+    progress_failure_grace_period,
+    loader,
+    chapter_profile,
+    default_implicit_wait=1,
 ):
     header = "WEBNOVELPUB::NOVEL_CHAPTERS_SCRAPER"
     GRACE_PERIOD_CURRENT = 0
@@ -318,20 +334,24 @@ def webnovelpub__scrape_novel_chapter(
             driver.implicitly_wait(default_implicit_wait)
 
             chapter_text = "\n".join([element.text for element in paragraph_elements])
+            driver.close()
+            driver.quit()
             return chapter_text
         except Exception as ex:
             GRACE_PERIOD_CURRENT += 1
             if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
                 cout.COut.broadcast(
-                    message=ns_exc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
+                    message=Broadcasts.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
                     style="warning",
                     header=header,
                 )
-                raise ns_exc.ScraperProcessFailureException(
+                driver.close()
+                driver.quit()
+                raise ns_exc.ScraperProgressFailureException(
                     ex, driver.current_url, header
                 )
             cout.COut.broadcast(
-                message=ns_exc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
+                message=Broadcasts.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
                     current_grace_period=GRACE_PERIOD_CURRENT
                 ),
                 style="warning",

@@ -4,9 +4,10 @@ import os
 
 
 class Broadcasts:
-    NOVEL_PROCESS_FAILURE_RETRY_BROADCAST = "WARNING !!! NOVEL PROCESS FAILURE GRACE RETRY !- GRACE PERIOD >> {current_grace_period} of {max_grace_period}"
-    SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST = "WARNING !!! SCRAPER PROCESS FAILURE GRACE RETRY !- GRACE PERIOD >> {current_grace_period} of {max_grace_period}"
-    SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST = "WARNING !!! SCRAPER PROCESS FAILURE GRACE COMPLETE !! KILLING THE SCRAPER FUNCTION"
+    NOVEL_PROCESS_FAILURE_RETRY_BROADCAST = "WARNING !!! NOVEL PROCESS FAILURE GRACE RETRY ! GRACE PERIOD >> {current_grace_period} of {max_grace_period}"
+    NOVEL_LINKS_COLLECTOR_FAILURE_RETRY_BROADCAST = "WARNING !!! NOVEL LINKS COLLECTOR FAILURE GRACE RETRY ! GRACE PERIOD >> {current_grace_period} of {max_grace_period}"
+    SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST = "WARNING !!! SCRAPER PROCESS FAILURE GRACE RETRY ! GRACE PERIOD >> {current_grace_period} of {max_grace_period}"
+    SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST = "WARNING !!! SCRAPER PROCESS FAILURE GRACE COMPLETE !!! KILLING THE SCRAPER FUNCTION"
 
 
 class COutColors:
@@ -35,7 +36,7 @@ class COutColors:
         elif style_str == "success":
             return COutColors.BOLD + COutColors.GREEN
         elif style_str == "warning":
-            return COutColors.UNDERLINE + COutColors.YELLOW
+            return COutColors.YELLOW
         elif style_str == "fail":
             return COutColors.BOLD + COutColors.RED
         else:

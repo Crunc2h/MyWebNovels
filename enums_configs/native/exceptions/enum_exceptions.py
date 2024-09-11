@@ -3,7 +3,7 @@ import novel_scraper.native.cout_custom as cout
 
 class EnumException(Exception):
     def __init__(self, message, header):
-        self.message = cout.COut.get_styled(message, header=header, style="failure")
+        self.message = cout.COut.get_styled(message, header=header, style="fail")
         super().__init__(self.message)
 
 

@@ -1,36 +1,37 @@
 import novel_scraper.models as models
 import novel_scraper.native.cout_custom as cout
 import enums_configs.native.novel_processor_cfg as np_cfg
-import enums_configs.native.driver_manager_cfg as dm_cfg
-import novel_processor.native.exceptions as np_exc
-import novel_scraper.native.ns_exceptions as ns_exc
-import novel_update.native.exceptions as nu_exc
-import driver_manager.native.exceptions as dm_exc
+import novel_processor.native.exceptions.novel_processor_exceptions as np_exc
+import novel_scraper.native.ns_exceptions as Broadcasts
+import novel_update.native.exceptions.novel_update_exceptions as nu_exc
 import novel_processor.models as np_models
-import driver_manager.models as dm_models
+import enums_configs.native.novel_update_cfg as nu_cfg
+import novel_storage.models as nst_models
 from enums_configs.native.enum_manager import EnumManager
 from novel_scraper.native.scraping_manager import ScrapingManager
 from time import sleep
 
 
 class NovelUpdaterType:
+    ALL_NOVEL_LINKS = "ALL_NOVEL_LINKS"
     NOVEL_PROFILER = "NOVEL_PROFILER"
     NOVEL_CHAPTER_PROFILER = "NOVEL_CHAPTER_PROFILER"
     NOVEL_CHAPTER_UPDATER = "NOVEL_CHAPTER_UPDATER"
 
     @staticmethod
     def is_updater_func_type_valid(updater_func_type):
-        if updater_func_type == NovelUpdaterType.NOVEL_PROFILER:
-            return True
-        elif updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_PROFILER:
-            return True
-        elif updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_UPDATER:
+        if (
+            updater_func_type == NovelUpdaterType.ALL_NOVEL_LINKS
+            or updater_func_type == NovelUpdaterType.NOVEL_PROFILER
+            or updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_PROFILER
+            or updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_UPDATER
+        ):
             return True
         return False
 
 
 class NovelUpdater:
-    def __init__(self, updater_func_type, source_site, driver=None) -> None:
+    def __init__(self, updater_func_type, source_site) -> None:
         self.header = f"NOVEL_UPDATER::{updater_func_type}"
         self.loader = cout.COutLoading()
 
@@ -38,38 +39,56 @@ class NovelUpdater:
         self.updater_func_type = updater_func_type
         self.updater_func = self.__get_updater_func()
 
+        self.process_failure_grace_period = nu_cfg.PROCESS_FAILURE_GRACE_PERIOD
+
         if np_models.NovelProcessPool.objects.count() > 1:
             raise nu_exc.MultipleNovelProcessPoolsExistException(self.header)
         elif np_models.NovelProcessPool.objects.count() == 0:
-            raise nu_exc.NoProcessPoolExistsException(self.header)
+            raise nu_exc.NoNovelProcessPoolExistsException(self.header)
         self.novel_process_pool = np_models.NovelProcessPool.objects.first()
-
-        if dm_models.DriverPool.objects.count() > 1:
-            raise nu_exc.DriverPoolsExistException(self.header)
-        elif dm_models.DriverPool.objects.count() == 0:
-            raise nu_exc.NoDriverPoolExistsException(self.header)
-        self.driver_pool = dm_models.DriverPool.objects.first()
-
-        if driver:
-            self.driver = driver
-        else:
-            self.driver = self.__request_available_driver(self.driver_pool)
 
         cout.COut.broadcast(
             message="Initialization successful",
             header=self.header,
             style="success",
         )
-        self.__update(
-            np_cfg.PROCESS_PROGRESS_FAILURE_GRACE_PERIOD, self.updater_func, self.loader
-        )
 
-    @staticmethod
-    def __updater_novel_profiler(
-        process, scraper, progress_failure_grace_period, loader
-    ):
+        if self.updater_func_type != NovelUpdaterType.ALL_NOVEL_LINKS:
+            self.__update()
+        else:
+            self.updater_func()
+
+    def __updater_all_novel_links(self):
+        while True:
+            GRACE_PERIOD_CURRENT = 0
+            scraper = ScrapingManager(self.source_site)
+
+            try:
+                links = scraper.get_all_novel_links(self.loader)
+                for link in links:
+                    t_link = nst_models.TempNovelLink(
+                        link=link, source_site=self.source_site
+                    )
+                    t_link.save()
+                return
+            except Broadcasts.ScraperProgressFailureException as ex:
+                GRACE_PERIOD_CURRENT += 1
+                if GRACE_PERIOD_CURRENT >= self.progress_failure_grace_period:
+                    raise nu_exc.NovelLinksCollectorFailureException(ex)
+                cout.COut.broadcast(
+                    message=cout.Broadcasts.NOVEL_LINKS_COLLECTOR_FAILURE_RETRY_BROADCAST.format(
+                        current_grace_period=GRACE_PERIOD_CURRENT,
+                        max_grace_period=self.progress_failure_grace_period,
+                    ),
+                    style="warning",
+                    header=self.header + "::" + ex.header,
+                )
+
+    def __updater_novel_profiler(self, process, scraper):
         temp_novel_profile = scraper.get_novel_profile(
-            progress_failure_grace_period, process.base_link, loader
+            self.process_failure_grace_period,
+            process.base_link,
+            self.loader,
         )
         if not process.novel_profile:
             novel_profile_obj = models.NovelProfile(
@@ -111,14 +130,13 @@ class NovelUpdater:
         )
         process.novel_profile.summary = temp_novel_profile["summary"]
 
-    @staticmethod
-    def __updater_novel_chapter_profiler(
-        process, scraper, progress_failure_grace_period, loader
-    ):
+    def __updater_novel_chapter_profiler(self, process, scraper):
         if not process.novel_profile:
             return
         temp_chapter_profiles = scraper.get_novel_chapter_profiles(
-            progress_failure_grace_period, process.base_link, loader
+            self.progress_failure_grace_period,
+            process.base_link,
+            self.loader,
         )
         if len(temp_chapter_profiles) == process.novel_profile.chapter_profiles.count():
             return
@@ -140,10 +158,7 @@ class NovelUpdater:
         for chapter in new_chapters:
             chapter.save()
 
-    @staticmethod
-    def __updater_novel_chapter_updater(
-        process, scraper, progress_failure_grace_period, loader
-    ):
+    def __updater_novel_chapter_updater(self, process, scraper):
         if not process.novel_profile:
             return
         if process.novel_profile.chapter_profiles.count() == 0:
@@ -152,7 +167,9 @@ class NovelUpdater:
             already_exists=False
         ):
             temp_chapter_text = scraper.get_novel_chapter(
-                progress_failure_grace_period, chapter_profile, loader
+                self.progress_failure_grace_period,
+                chapter_profile,
+                self.loader,
             )
             chapter_text_obj = models.ChapterText(
                 chapter_profile=chapter_profile, text=temp_chapter_text
@@ -161,13 +178,14 @@ class NovelUpdater:
 
     def __get_updater_func(self):
         if not NovelUpdaterType.is_updater_func_type_valid(self.updater_func_type):
-            raise ns_exc.InvalidUpdaterFuncTypeException(self.updater_func_type)
-        if self.updater_func_type == NovelUpdaterType.NOVEL_PROFILER:
-            return NovelUpdater.__updater_novel_profiler
+            raise Broadcasts.InvalidUpdaterFuncTypeException(self.updater_func_type)
+        if self.updater_func_type == NovelUpdaterType.ALL_NOVEL_LINKS:
+            return self.__updater_all_novel_links
+        elif self.updater_func_type == NovelUpdaterType.NOVEL_PROFILER:
+            return self.__updater_novel_profiler
         elif self.updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_PROFILER:
-            return NovelUpdater.__updater_novel_chapter_profiler
-        elif self.updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_UPDATER:
-            return NovelUpdater.__updater_novel_chapter_updater
+            return self.__updater_novel_chapter_profiler
+        return self.__updater_novel_chapter_updater
 
     def __request_available_process(self):
         while True:
@@ -184,25 +202,7 @@ class NovelUpdater:
                 )
             sleep(np_cfg.POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD)
 
-    def __request_available_driver(self):
-        while True:
-            try:
-                driver = self.driver_pool.get_available_driver()
-                while not driver:
-                    cout.COut.broadcast(
-                        f"No available driver detected, awaiting for {dm_cfg.NO_AVAILABLE_DRIVER_RETRY_PERIOD}s before retrying..."
-                    )
-                    driver = self.driver_pool.get_available_driver()
-                return driver
-            except dm_exc.DriverPoolLockedException:
-                cout.COut.broadcast(
-                    f"Driver pool is locked, awaiting for {dm_cfg.POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD}s before retrying...",
-                    header=self.header,
-                    style="warning",
-                )
-            sleep(dm_cfg.POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD)
-
-    def __update(self, progress_failure_grace_period, updater_func, loader):
+    def __update(self):
         processes_updated = 0
         while True:
             GRACE_PERIOD_CURRENT = 0
@@ -219,22 +219,21 @@ class NovelUpdater:
             scraper = ScrapingManager(process.source_site)
             while True:
                 try:
-                    updater_func(
-                        process, scraper, progress_failure_grace_period, loader
-                    )
+                    self.updater_func(process, scraper, self.loader)
+                    GRACE_PERIOD_CURRENT = 0
                     break
-                except ns_exc.ScraperProcessFailureException as ex:
+                except Broadcasts.ScraperProgressFailureException as ex:
                     GRACE_PERIOD_CURRENT += 1
-                    if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
+                    if GRACE_PERIOD_CURRENT >= self.progress_failure_grace_period:
                         process.release_process(self.updater_func_type)
                         raise nu_exc.NovelProcessFailureException(ex, process)
                     cout.COut.broadcast(
                         message=cout.Broadcasts.NOVEL_PROCESS_FAILURE_RETRY_BROADCAST.format(
                             current_grace_period=GRACE_PERIOD_CURRENT,
-                            max_grace_period=progress_failure_grace_period,
+                            max_grace_period=self.progress_failure_grace_period,
                         ),
                         style="warning",
-                        header=self.header + ex.header,
+                        header=self.header + "::" + ex.header,
                     )
                 except Exception as ex:
                     process.release_process(self.updater_func_type)
@@ -253,13 +252,9 @@ class NovelUpdater:
             return NovelUpdater(
                 NovelUpdaterType.NOVEL_CHAPTER_PROFILER,
                 self.source_site,
-                self.driver,
             )
         elif self.updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_PROFILER:
             return NovelUpdater(
                 NovelUpdaterType.NOVEL_CHAPTER_UPDATER,
                 self.source_site,
-                self.driver,
             )
-        else:
-            return self.driver.release_driver()
