@@ -1,16 +1,9 @@
 import novel_scraper.models as models
 import novel_scraper.native.novel_ppool_cfg as npcfg
+import novel_scraper.native.ns_exceptions as nsexc
 from novel_scraper.native.enum_manager import EnumManager
 from novel_scraper.native.scraping_manager import ScrapingManager
 from novel_scraper.native.cout_custom import COut, COutLoading
-from novel_scraper.native.ns_exceptions import (
-    NoProcessPoolExistsException,
-    ProcessPoolLockedException,
-    InvalidUpdaterFuncTypeException,
-    ScraperProcessFailureException,
-    NovelProcessFailureException,
-    NOVEL_PROCESS_FAILURE_RETRY_BROADCAST,
-)
 from novel_scraper.native.novel_ppool_cfg import POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD
 from time import sleep
 
@@ -32,15 +25,22 @@ class NovelUpdaterType:
 
 
 class NovelUpdater:
-    def __init__(self, updater_func_type, source_site) -> None:
+    def __init__(
+        self, updater_func_type, source_site, driver_pool, driver=None
+    ) -> None:
         self.source_site = source_site
         self.updater_func_type = updater_func_type
         self.updater_func = NovelUpdater.__get_updater_func(updater_func_type)
         self.header = f"NOVEL_UPDATER::{updater_func_type}"
-        self.pool = models.NovelProcessPool.objects.first()
         self.loader = COutLoading()
-        if not self.pool:
-            raise NoProcessPoolExistsException(self.header)
+        self.novel_process_pool = models.NovelProcessPool.objects.first()
+        if not self.novel_process_pool:
+            raise nsexc.NoProcessPoolExistsException(self.header)
+        self.driver_pool = driver_pool
+        if driver:
+            self.driver = driver
+        else:
+            self.driver = self.__request_available_driver(self.driver_pool)
         COut.broadcast(
             message="Initialization successful",
             header=self.header,
@@ -148,7 +148,7 @@ class NovelUpdater:
     @staticmethod
     def __get_updater_func(updater_func_type):
         if not NovelUpdaterType.is_updater_func_type_valid(updater_func_type):
-            raise InvalidUpdaterFuncTypeException(updater_func_type)
+            raise nsexc.InvalidUpdaterFuncTypeException(updater_func_type)
         if updater_func_type == NovelUpdaterType.NOVEL_PROFILER:
             return NovelUpdater.__updater_novel_profiler
         elif updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_PROFILER:
@@ -159,13 +159,34 @@ class NovelUpdater:
     def __request_available_process(self):
         while True:
             try:
-                process = self.pool.get_available_process(
+                process = self.novel_process_pool.get_available_process(
                     self.updater_func_type, self.source_site
                 )
                 return process
-            except ProcessPoolLockedException:
+            except nsexc.ProcessPoolLockedException:
                 COut.broadcast(
                     f"Process pool is locked, awaiting for {POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD}s before retrying...",
+                    header=self.header,
+                    style="warning",
+                )
+                sleep(POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD)
+
+    def __request_available_driver(self):
+        while True:
+            try:
+                driver = self.driver_pool.get_available_driver()
+                while not driver:
+                    COut.broadcast(
+                        f"Awaiting for an available driver...",
+                        header=self.header,
+                        style="warning",
+                    )
+                    sleep(POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD)
+                    driver = self.driver_pool.get_available_driver()
+                return driver
+            except nsexc.DriverPoolLockedException:
+                COut.broadcast(
+                    f"Driver pool is locked, awaiting for {POOL_REQUEST_ACCESS_DENIED_RETRY_PERIOD}s before retrying...",
                     header=self.header,
                     style="warning",
                 )
@@ -192,13 +213,13 @@ class NovelUpdater:
                         process, scraper, progress_failure_grace_period, loader
                     )
                     break
-                except ScraperProcessFailureException as ex:
+                except nsexc.ScraperProcessFailureException as ex:
                     GRACE_PERIOD_CURRENT += 1
                     if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
                         process.release_process(self.updater_func_type)
-                        raise NovelProcessFailureException(ex, process)
+                        raise nsexc.NovelProcessFailureException(ex, process)
                     COut.broadcast(
-                        message=NOVEL_PROCESS_FAILURE_RETRY_BROADCAST.format(
+                        message=nsexc.NOVEL_PROCESS_FAILURE_RETRY_BROADCAST.format(
                             current_grace_period=GRACE_PERIOD_CURRENT
                         ),
                         style="warning",
@@ -219,9 +240,15 @@ class NovelUpdater:
 
         if self.updater_func_type == NovelUpdaterType.NOVEL_PROFILER:
             return NovelUpdater(
-                NovelUpdaterType.NOVEL_CHAPTER_PROFILER, self.source_site
+                NovelUpdaterType.NOVEL_CHAPTER_PROFILER,
+                self.source_site,
+                self.driver_pool,
+                self.driver,
             )
         elif self.updater_func_type == NovelUpdaterType.NOVEL_CHAPTER_PROFILER:
             return NovelUpdater(
-                NovelUpdaterType.NOVEL_CHAPTER_UPDATER, self.source_site
+                NovelUpdaterType.NOVEL_CHAPTER_UPDATER,
+                self.source_site,
+                self.driver_pool,
+                self.driver,
             )

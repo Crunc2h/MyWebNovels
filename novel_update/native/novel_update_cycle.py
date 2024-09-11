@@ -2,6 +2,7 @@ import os
 import novel_scraper.models as models
 import novel_scraper.native.novel_ppool_cfg as npcfg
 import novel_scraper.native.ns_exceptions as nsexc
+from novel_scraper.native.driver_pool import DriverPool
 from novel_scraper.native.source_site import SourceSite
 from novel_scraper.native.scraping_manager import ScrapingManager
 from novel_scraper.native.cout_custom import COut, COutLoading
@@ -15,7 +16,6 @@ class NovelUpdateCycle:
         self.loader = COutLoading()
         self.t_start = datetime.now(timezone.utc)
         self.sites = SourceSite.all()
-        COut.broadcast("Initialization successful", style="success", header=self.header)
 
         if models.NovelProcessPool.objects.count() > 1:
             raise nsexc.MultipleProcessPoolsExistException(self.header)
@@ -35,6 +35,13 @@ class NovelUpdateCycle:
         else:
             self.pool = models.NovelProcessPool.objects.first()
 
+        self.driver_pool = DriverPool(len(self.sites) * max_concurrent_ops_per_site)
+        self.driver_pool.drivers[0].driver.get("https://www.google.com")
+        print(self.driver_pool.drivers[0].driver.page_source)
+
+        COut.broadcast("Initialization successful", style="success", header=self.header)
+
+        """
         sites_and_links = []
         for site in self.sites:
             scraper = ScrapingManager(site)
@@ -59,7 +66,6 @@ class NovelUpdateCycle:
                 "webnovelpub.com",
             )
         ]
-        """
 
         for novel_links, site in sites_and_links:
             for link in novel_links:

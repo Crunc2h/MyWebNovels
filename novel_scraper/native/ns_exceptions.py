@@ -86,14 +86,6 @@ class NovelProcessFailureException(NovelScraperException):
         super().__init__(self.message)
 
 
-class NoDriverAvailableException(NovelScraperException):
-    def __init__(self):
-        self.message = COut.get_styled(
-            "No drivers available for updaters!", header="DRIVER_POOL"
-        )
-        super().__init__(self.message)
-
-
 class DriverPoolLockedException(NovelScraperException):
     def __init__(self):
         self.message = COut.get_styled("Driver pool is locked!", header="DRIVER_POOL")
