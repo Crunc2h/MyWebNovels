@@ -1,3 +1,6 @@
+import novel_scraper.native.cout_custom as cout
+
+
 class DriverException(Exception):
     def __init__(self, message, header):
         self.message = cout.COut.get_styled(message, header=header, style="failure")
@@ -6,25 +9,20 @@ class DriverException(Exception):
 
 class DriverPoolLockedException(DriverException):
     def __init__(self):
-        self.message = cout.COut.get_styled(
-            "Driver pool is locked!", header="DRIVER_POOL"
-        )
-        super().__init__(self.message)
+        self.header = "DRIVER_POOL"
+        self.message = "Driver pool is locked!"
+        super().__init__(self.message, self.header)
 
 
 class DriverAlreadyCapturedException(DriverException):
     def __init__(self, driver):
-        self.message = cout.COut.get_styled(
-            f"Driver  id_{driver.id} is already captured!",
-            header=f"DRIVER_POOL::DRIVER{driver.id}",
-        )
-        super().__init__(self.message)
+        self.header = f"DRIVER_POOL::DRIVER{driver.id}"
+        self.message = (f"Driver  id_{driver.id} is already captured!",)
+        super().__init__(self.message, self.header)
 
 
 class DriverAlreadyReleasedException(DriverException):
     def __init__(self, driver):
-        self.message = cout.COut.get_styled(
-            f"Driver  id_{driver.id} is already released!",
-            header=f"DRIVER_POOL::DRIVER-{driver.id}",
-        )
-        super().__init__(self.message)
+        self.header = f"DRIVER_POOL::DRIVER{driver.id}"
+        self.message = (f"Driver  id_{driver.id} is already released!",)
+        super().__init__(self.message, self.header)

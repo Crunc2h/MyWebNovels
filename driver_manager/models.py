@@ -5,6 +5,40 @@ from selenium import webdriver
 from datetime import datetime, timezone
 
 
+class DriverPool(models.Model):
+    is_locked = models.BooleanField(default=False)
+
+    def initialize(self, max_concurrent_ops):
+        if self.drivers.count() > 0:
+            cout.COut.broadcast(
+                "Previously present drivers discovered, deletion in progress...",
+                header="DRIVER_POOL",
+                style="warning",
+            )
+        for driver in self.drivers.all():
+            driver.close()
+        for i in range(max_concurrent_ops):
+            driver = Driver(
+                pool=self,
+            )
+            driver.save()
+        cout.COut.broadcast(
+            "Initialization successful", header="DRIVER_POOL", style="success"
+        )
+
+    def get_available_driver(self):
+        if self.is_locked:
+            raise dmexc.DriverPoolLockedException()
+        self.is_locked = True
+        for driver in self.drivers:
+            if not driver.is_being_used:
+                self.is_locked = False
+                driver.capture_driver()
+                return driver
+        self.is_locked = False
+        return None
+
+
 class Driver(models.Model):
     pool = models.ForeignKey(
         DriverPool, on_delete=models.CASCADE, related_name="drivers"
@@ -64,37 +98,3 @@ class DriverUsage(models.Model):
     def save(self) -> None:
         self.t_delta_seconds = (self.t_end - self.t_start).seconds
         return super().save()
-
-
-class DriverPool(models.Model):
-    is_locked = models.BooleanField(default=False)
-
-    def initialize(self, max_concurrent_ops):
-        if self.drivers.count() > 0:
-            cout.COut.broadcast(
-                "Previously present drivers discovered, deletion in progress...",
-                header="DRIVER_POOL",
-                style="warning",
-            )
-        for driver in self.drivers.all():
-            driver.close()
-        for i in range(max_concurrent_ops):
-            driver = Driver(
-                pool=self,
-            )
-            driver.save()
-        cout.COut.broadcast(
-            "Initialization successful", header="DRIVER_POOL", style="success"
-        )
-
-    def get_available_driver(self):
-        if self.is_locked:
-            raise dmexc.DriverPoolLockedException()
-        self.is_locked = True
-        for driver in self.drivers:
-            if not driver.is_being_used:
-                self.is_locked = False
-                driver.capture_driver()
-                return driver
-        self.is_locked = False
-        return None

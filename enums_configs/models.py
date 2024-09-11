@@ -19,3 +19,7 @@ class NovelCompletionStatus(models.Model):
 
 class NovelLanguage(models.Model):
     name = models.CharField(max_length=512)
+
+
+class NovelSourceSite(models.Model):
+    name = models.CharField(max_length=512)
