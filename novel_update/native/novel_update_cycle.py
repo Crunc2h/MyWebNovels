@@ -1,9 +1,9 @@
 import os
 import novel_scraper.models as models
-import novel_scraper.native.novel_ppool_cfg as npcfg
-import novel_scraper.native.ns_exceptions as nsexc
-from novel_scraper.native.driver_pool import DriverPool
-from novel_scraper.native.source_site import SourceSite
+import enums_configs.native.novel_ppool_cfg as npcfg
+import novel_scraper.native.ns_exceptions as ns_exc
+from driver_manager.native.driver_pool import DriverPool
+from enums_configs.native.source_site import SourceSite
 from novel_scraper.native.scraping_manager import ScrapingManager
 from novel_scraper.native.cout_custom import COut, COutLoading
 from datetime import datetime, timezone
@@ -18,7 +18,7 @@ class NovelUpdateCycle:
         self.sites = SourceSite.all()
 
         if models.NovelProcessPool.objects.count() > 1:
-            raise nsexc.MultipleProcessPoolsExistException(self.header)
+            raise ns_exc.MultipleProcessPoolsExistException(self.header)
         elif models.NovelProcessPool.objects.count() == 0:
             COut.broadcast(
                 "No process pool detected, creating a new one...",
@@ -36,8 +36,6 @@ class NovelUpdateCycle:
             self.pool = models.NovelProcessPool.objects.first()
 
         self.driver_pool = DriverPool(len(self.sites) * max_concurrent_ops_per_site)
-        self.driver_pool.drivers[0].driver.get("https://www.google.com")
-        print(self.driver_pool.drivers[0].driver.page_source)
 
         COut.broadcast("Initialization successful", style="success", header=self.header)
 

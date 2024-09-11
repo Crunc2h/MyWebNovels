@@ -1,4 +1,4 @@
-import enums_configs.native.novel_processor_cfg as npcfg
+import enums_configs.native.novel_processor_cfg as np_cfg
 import novel_processor.native.exceptions.novel_processor_exceptions as npexc
 from django.db import models
 from datetime import datetime, timezone, timedelta
@@ -15,11 +15,11 @@ class NovelProcessPool(models.Model):
                 base_link=process_base_link,
                 source_site=process_source_site,
                 last_processed_by_novel_profiler=datetime.now(timezone.utc)
-                - timedelta(minutes=npcfg.PROCESS_CONTROL_THRESHOLD + 5),
+                - timedelta(minutes=np_cfg.PROCESS_CONTROL_THRESHOLD + 5),
                 last_processed_by_novel_chapter_profiler=datetime.now(timezone.utc)
-                - timedelta(minutes=npcfg.PROCESS_CONTROL_THRESHOLD + 5),
+                - timedelta(minutes=np_cfg.PROCESS_CONTROL_THRESHOLD + 5),
                 last_processed_by_novel_chapter_updater=datetime.now(timezone.utc)
-                - timedelta(minutes=npcfg.PROCESS_CONTROL_THRESHOLD + 5),
+                - timedelta(minutes=np_cfg.PROCESS_CONTROL_THRESHOLD + 5),
             )
             process.save()
         self.locked = False

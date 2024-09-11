@@ -1,5 +1,5 @@
 import novel_scraper.native.cout_custom as cout
-import novel_scraper.native.ns_exceptions as nsexc
+import novel_scraper.native.ns_exceptions as ns_exc
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
@@ -79,15 +79,15 @@ def webnovelpub__scrape_all_novel_links(
             GRACE_PERIOD_CURRENT += 1
             if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
                 cout.COut.broadcast(
-                    message=nsexc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
+                    message=ns_exc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
                     style="warning",
                     header=header,
                 )
-                raise nsexc.ScraperProcessFailureException(
+                raise ns_exc.ScraperProcessFailureException(
                     ex, driver.current_url, header
                 )
             cout.COut.broadcast(
-                message=nsexc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
+                message=ns_exc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
                     current_grace_period=GRACE_PERIOD_CURRENT,
                     max_grace_period=progress_failure_grace_period,
                 ),
@@ -173,14 +173,14 @@ def webnovelpub__scrape_novel_profile(
             GRACE_PERIOD_CURRENT += 1
             if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
                 cout.COut.broadcast(
-                    message=nsexc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
+                    message=ns_exc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
                     style="warning",
                 )
-                raise nsexc.ScraperProcessFailureException(
+                raise ns_exc.ScraperProcessFailureException(
                     ex, driver.current_url, header
                 )
             cout.COut.broadcast(
-                message=nsexc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
+                message=ns_exc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
                     current_grace_period=GRACE_PERIOD_CURRENT
                 ),
                 style="warning",
@@ -277,15 +277,15 @@ def webnovelpub__scrape_novel_chapter_profiles(
             GRACE_PERIOD_CURRENT += 1
             if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
                 cout.COut.broadcast(
-                    message=nsexc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
+                    message=ns_exc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
                     style="warning",
                     header=header,
                 )
-                raise nsexc.ScraperProcessFailureException(
+                raise ns_exc.ScraperProcessFailureException(
                     ex, driver.current_url, header
                 )
             cout.COut.broadcast(
-                message=nsexc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
+                message=ns_exc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
                     current_grace_period=GRACE_PERIOD_CURRENT
                 ),
                 style="warning",
@@ -323,15 +323,15 @@ def webnovelpub__scrape_novel_chapter(
             GRACE_PERIOD_CURRENT += 1
             if GRACE_PERIOD_CURRENT >= progress_failure_grace_period:
                 cout.COut.broadcast(
-                    message=nsexc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
+                    message=ns_exc.SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST,
                     style="warning",
                     header=header,
                 )
-                raise nsexc.ScraperProcessFailureException(
+                raise ns_exc.ScraperProcessFailureException(
                     ex, driver.current_url, header
                 )
             cout.COut.broadcast(
-                message=nsexc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
+                message=ns_exc.SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST.format(
                     current_grace_period=GRACE_PERIOD_CURRENT
                 ),
                 style="warning",

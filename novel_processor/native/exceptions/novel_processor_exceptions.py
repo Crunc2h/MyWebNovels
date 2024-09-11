@@ -28,19 +28,3 @@ class ProcessAlreadyInactiveException(NovelProcessorException):
         self.header = f"NOVEL_PROCESS_POOL"
         self.message = f"Process {process_base_link} is already inactive!"
         super().__init__(self.message, self.header)
-
-
-# move to novel update
-class NoProcessPoolExistsException(NovelScraperException):
-    def __init__(self, updater_func_type):
-        self.header = f"NOVEL_UPDATE::{updater_func_type}"
-        self.message = "No process pool exists!"
-        super().__init__(self.message, self.header)
-
-
-# move to novel update
-class MultipleProcessPoolsExistException(NovelScraperException):
-    def __init__(self, header):
-        self.header = f"NOVEL_UPDATE::{updater_func_type}"
-        self.message = "No process pool exists!"
-        super().__init__(self.message, self.header)

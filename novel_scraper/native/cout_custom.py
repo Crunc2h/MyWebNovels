@@ -3,6 +3,12 @@ import novel_scraper.native.cout_exceptions as coutexc
 import os
 
 
+class Broadcasts:
+    NOVEL_PROCESS_FAILURE_RETRY_BROADCAST = "WARNING !!! NOVEL PROCESS FAILURE GRACE RETRY !- GRACE PERIOD >> {current_grace_period} of {max_grace_period}"
+    SCRAPER_PROCESS_FAILURE_RETRY_BROADCAST = "WARNING !!! SCRAPER PROCESS FAILURE GRACE RETRY !- GRACE PERIOD >> {current_grace_period} of {max_grace_period}"
+    SCRAPER_PROCESS_FAILURE_COMPLETE_BROADCAST = "WARNING !!! SCRAPER PROCESS FAILURE GRACE COMPLETE !! KILLING THE SCRAPER FUNCTION"
+
+
 class COutColors:
     HEADER = "\033[95m"
     BLUE = "\033[94m"
