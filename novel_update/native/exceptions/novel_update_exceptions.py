@@ -1,4 +1,4 @@
-import novel_scraper.native.cout_custom as cout
+import cout.native.cout_custom as cout
 
 
 class NovelUpdateException(Exception):

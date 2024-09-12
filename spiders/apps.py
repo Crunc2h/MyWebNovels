@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class NovelScraperConfig(AppConfig):
+class SpidersConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'novel_scraper'
+    name = 'spiders'

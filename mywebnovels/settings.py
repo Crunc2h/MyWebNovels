@@ -37,11 +37,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "novel_scraper",
     "novel_update",
     "novel_processor",
     "novel_storage",
     "enums_configs",
+    "spiders",
 ]
 
 MIDDLEWARE = [

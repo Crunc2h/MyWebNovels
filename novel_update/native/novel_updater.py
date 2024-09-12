@@ -1,5 +1,5 @@
 import novel_scraper.models as models
-import novel_scraper.native.cout_custom as cout
+import cout.native.cout_custom as cout
 import enums_configs.native.novel_processor_cfg as np_cfg
 import novel_processor.native.exceptions.novel_processor_exceptions as np_exc
 import novel_scraper.native.ns_exceptions as Broadcasts

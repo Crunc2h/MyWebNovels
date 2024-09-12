@@ -1,5 +1,4 @@
 import enums_configs.native.exceptions.enum_exceptions as ec_exc
-import novel_scraper.native.cout_custom as cout
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 
 

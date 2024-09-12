@@ -1,11 +1,10 @@
 from django.core.management.base import BaseCommand
 from datetime import datetime, timezone, timedelta
 from time import sleep
-import enums_configs.models as ec_models
 import enums_configs.native.novel_processor_cfg as np_cfg
 import novel_processor.models as np_models
 import novel_storage.models as ns_models
-import novel_scraper.native.cout_custom as cout
+import cout.native.cout_custom as cout
 import os
 
 

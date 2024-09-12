@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-import novel_scraper.native.cout_exceptions as coutexc
+import cout.native.exceptions.cout_exceptions as coutexc
 import os
 
 
